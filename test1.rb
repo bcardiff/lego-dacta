@@ -14,19 +14,32 @@ def set_output(serial, port, on, right)
 			theleftrightbyte += 8 # Set bit 4 if we want to go right.
 		end
 
-		serial.putc theonoffbyte
 		serial.putc theleftrightbyte
+		serial.putc theonoffbyte
 		puts "sending: %08b - %08b" % [theonoffbyte, theleftrightbyte]
 	end
 end
 
 open("/dev/cu.usbserial", "r+") do |serial|
 	echo_thread = Thread.new {
-		while true do
-			b = serial.read
-			puts " com -> pc '#{b}' (#{b.ord})" unless b.nil?
-			sleep 1
+		start = Time.now
+		input = serial.chars
+		while Time.now - start < 30 do
+
+			Timeout::timeout(1) {
+				b = input.peek
+				unless b.nil?
+					input.next
+					# b = serial.sysread(1)
+					# puts Time.now - start
+					puts " com -> pc '#{b}' (#{b.ord})"
+				end
+			}
+
+			sleep 0.2
 		end
+
+		puts "exit echo thread"
 	}
 
 	serial.write "\0Welcome to the N i n j a /IbmLogo World\rp\0###Do you byte, when I knock?$$$"
@@ -43,12 +56,15 @@ open("/dev/cu.usbserial", "r+") do |serial|
 	sleep 5
 
 	set_output serial, 0, true, true
+	set_output serial, 1, true, false
 	sleep 1
 	set_output serial, 0, true, false
+	set_output serial, 1, true, true
 	sleep 1
 	set_output serial, 0, false, true
+	set_output serial, 1, false, true
 
-	sleep 10
+	# sleep 10
 
 	echo_thread.terminate
 	keep_alive_thread.terminate
