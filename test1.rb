@@ -1,8 +1,31 @@
+def set_output(serial, port, on, right)
+	theonoffbyte = 0x28 # Command to turn port on "00101ppp"
+	theleftrightbyte = 0x40 # Command to turn port left "01000ppp"
+	
+	if port>=0 && port<=7
+		theonoffbyte = theonoffbyte + port # Insert port number into command.
+		theleftrightbyte = theleftrightbyte + port
+		
+		if !on
+			theonoffbyte = theonoffbyte + 16 # Turn bit 5 on if we're turning port off.
+		end
+		
+		if right
+			theleftrightbyte += 8 # Set bit 4 if we want to go right.
+		end
+
+		serial.putc theonoffbyte
+		serial.putc theleftrightbyte
+		puts "sending: %08b - %08b" % [theonoffbyte, theleftrightbyte]
+	end
+end
+
 open("/dev/cu.usbserial", "r+") do |serial|
 	echo_thread = Thread.new {
 		while true do
-			b = serial.getc
-			puts " com -> pc '#{b}' (#{b.ord})"
+			b = serial.read
+			puts " com -> pc '#{b}' (#{b.ord})" unless b.nil?
+			sleep 1
 		end
 	}
 
@@ -17,8 +40,15 @@ open("/dev/cu.usbserial", "r+") do |serial|
 		end
 	}
 
+	sleep 5
 
-	sleep 6
+	set_output serial, 0, true, true
+	sleep 1
+	set_output serial, 0, true, false
+	sleep 1
+	set_output serial, 0, false, true
+
+	sleep 10
 
 	echo_thread.terminate
 	keep_alive_thread.terminate
